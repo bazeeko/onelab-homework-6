@@ -17,7 +17,6 @@ type Server struct {
 	MaxConns int
 	done     chan struct{}
 	wg       sync.WaitGroup
-	alive    bool
 	sync.RWMutex
 }
 
@@ -38,13 +37,7 @@ func (s *Server) Run(ctx context.Context) {
 	}
 	defer listener.Close()
 
-	s.Lock()
-	s.alive = true
 	s.done = make(chan struct{})
-	s.Unlock()
-
-	// serverShutdown := make(chan os.Signal, 1)
-	// signal.Notify(serverShutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
 
 	resquestChannel := make(chan net.Conn, s.MaxConns)
 
@@ -81,20 +74,8 @@ LOOP:
 		}
 	}
 
-	// <-serverShutdown
-	s.Lock()
-	s.alive = false
-	s.Unlock()
-
 	fmt.Println()
 	log.Println("Server Stopped")
-}
-
-func (s *Server) IsAlive() bool {
-	s.Lock()
-	defer s.Unlock()
-
-	return s.alive
 }
 
 func handlerRequest(conn net.Conn) {
