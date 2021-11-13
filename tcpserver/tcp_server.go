@@ -17,6 +17,8 @@ type Server struct {
 	MaxConns int
 	done     chan struct{}
 	wg       sync.WaitGroup
+	alive    bool
+	sync.RWMutex
 }
 
 // NewServer returns the new Server struct with the given parameters
@@ -30,19 +32,16 @@ func NewServer(addr string, conns int) *Server {
 
 // Run starts the server
 func (s *Server) Run(ctx context.Context) {
-	// ln, err := net.Listen("tcp", s.Addr)
-	// if err != nil {
-	// 	log.Fatalln(err)
-	// }
-	// defer ln.Close()
-
 	listener, err := (&net.ListenConfig{}).Listen(ctx, "tcp", s.Addr)
 	if err != nil {
 		fmt.Println(err)
 	}
 	defer listener.Close()
 
+	s.Lock()
+	s.alive = true
 	s.done = make(chan struct{})
+	s.Unlock()
 
 	// serverShutdown := make(chan os.Signal, 1)
 	// signal.Notify(serverShutdown, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
@@ -83,7 +82,19 @@ LOOP:
 	}
 
 	// <-serverShutdown
+	s.Lock()
+	s.alive = false
+	s.Unlock()
+
+	fmt.Println()
 	log.Println("Server Stopped")
+}
+
+func (s *Server) IsAlive() bool {
+	s.Lock()
+	defer s.Unlock()
+
+	return s.alive
 }
 
 func handlerRequest(conn net.Conn) {
@@ -91,14 +102,16 @@ func handlerRequest(conn net.Conn) {
 
 	request, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
-		fmt.Println(err)
+		conn.Write([]byte(err.Error()))
+		return
 	}
 
 	str := strings.Replace(request, "\n", "", -1)
 
 	number, err := strconv.Atoi(str)
 	if err != nil {
-		fmt.Println("Error: NaN", err)
+		conn.Write([]byte(err.Error()))
+		return
 	}
 
 	conn.Write([]byte(strconv.Itoa(number * number)))

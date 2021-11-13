@@ -89,7 +89,10 @@ func main() {
 	time.Sleep(time.Second)
 
 	for {
-		fmt.Println("asd")
+		if !tcpServer.IsAlive() {
+			break
+		}
+
 		conn, err := net.Dial("tcp", "127.0.0.1"+tcpServer.Addr)
 		if err != nil {
 			log.Fatalln(err)
@@ -109,18 +112,8 @@ func main() {
 			break
 		}
 
-		fmt.Println("as")
-
 		message, err := bufio.NewReader(conn).ReadString('\n')
-		// if err != nil {
-		// 	break
-		// }
 
-		// if len(message) == 0 {
-		// 	break
-		// }
-
-		fmt.Println(err)
 		fmt.Println("Response:", message)
 	}
 }
